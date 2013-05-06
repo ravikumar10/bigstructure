@@ -5,6 +5,7 @@ import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
@@ -55,9 +56,26 @@ public class BigStructure {
 	 *            Can be Client or Server (see {@code Modes})
 	 * @throws IOException
 	 * @throws CoordinatorException
+	 * @throws NoSuchMethodException
+	 * @throws InvocationTargetException
+	 * @throws IllegalAccessException
+	 * @throws InstantiationException
+	 * @throws SecurityException
+	 * @throws IllegalArgumentException
+	 * @throws CompilationFailedException
+	 * @throws InterruptedException
 	 */
 	public static void main(String[] args) throws IOException,
-			CoordinatorException {
+			CoordinatorException, CompilationFailedException,
+			IllegalArgumentException, SecurityException,
+			InstantiationException, IllegalAccessException,
+			InvocationTargetException, NoSuchMethodException,
+			InterruptedException {
+		if (args.length == 0) {
+			printUsageMesage();
+			return;
+		}
+
 		String mode = args[0];
 
 		// This is necessary because it loads the configuration for either
@@ -70,10 +88,33 @@ public class BigStructure {
 			app.addService(EchoRequest.class, EchoService.class);
 
 			addGroovyPlugins(app);
+			
+			Thread.currentThread().wait();
+			
 		} else if (mode.equals(Modes.Client.name())) {
+			String mainClientFile = args[1];
 			log.info("Starting in client mode");
-			BigSClient app = new BigSClient();
+			classLoader = new GroovyClassLoader();
+
+			@SuppressWarnings("unchecked")
+			BigSClient app = (BigSClient) classLoader
+					.parseClass(new File(mainClientFile)).getConstructor()
+					.newInstance();
+			app.Main();
+		} else {
+			System.err.println("Error, unknown mode: " + mode);
 		}
+
+	}
+
+	private static void printUsageMesage() {
+		System.out.println("Usage:");
+		System.out
+				.println("\t./BigStructure.jar <Client|Server> [Groovy Client file]");
+		System.out.println("Examples:");
+		System.out.println("\t./BigStructure.jar Client sampleClient.groovy");
+		System.out.println("\t./BigStructure.jar Server");
+		System.out.println("Note: Requires file " + PROPERTIES_FILENAME);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unused", "unchecked" })

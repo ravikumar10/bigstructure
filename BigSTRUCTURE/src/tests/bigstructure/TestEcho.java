@@ -47,7 +47,13 @@ public class TestEcho {
 		log.info("Starting in server mode");
 		this.server = new BigSServer();
 
-		this.client = new BigSClient();
+		this.client = new BigSClient(){
+
+			@Override
+			public void Main() {
+				// TODO Auto-generated method stub
+				
+			}};
 
 	}
 

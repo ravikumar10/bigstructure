@@ -15,7 +15,7 @@ import org.feiteira.bigstructure.core.abstracts.BigSRequest;
 import org.feiteira.bigstructure.core.abstracts.BigSResponse;
 import org.feiteira.network.SeriClient;
 
-public class BigSClient implements BigSWatcher {
+public abstract class BigSClient implements BigSWatcher {
 
 	public static Logger log = Logger.getLogger(BigSClient.class);
 
@@ -25,6 +25,8 @@ public class BigSClient implements BigSWatcher {
 
 	private HashMap<String, EPUConnection> epuConnections;
 
+	public abstract void Main();
+	
 	/**
 	 * Creates a BigStructure client instance
 	 */
@@ -37,8 +39,10 @@ public class BigSClient implements BigSWatcher {
 		epuConnections = new HashMap<String, EPUConnection>();
 		// vars
 		this.id = properties.getProperty(BigStructure.PROP_STRUCTURE_ID);
-	}	
+	}
 	
+
+
 	/**
 	 * Requests an EPU instance for {@code epuPath}. Path must exist.
 	 * 
@@ -49,7 +53,26 @@ public class BigSClient implements BigSWatcher {
 		coordinator.addChildChangeWatcher(epuPath, this);
 		String nx = epuPath.replace('/', '-');
 		coordinator.create("/" + id + "/atrium/" + nx, epuPath);
+	}
 
+	/**
+	 * If it does not exists, creates an host node.
+	 * 
+	 * @param hostNodeRelativePath
+	 * @return false in case the node does not exist and it was not possible to
+	 *         create
+	 */
+	public boolean ensureHost(String hostNodeRelativePath) {
+		String fullPath = "/" + id + hostNodeRelativePath;
+		if (coordinator.exists(fullPath))
+			return true;
+
+		try {
+			return coordinator.create(fullPath, null);
+		} catch (CoordinatorException e) {
+			log.error("Error creating host node", e);
+			return false;
+		}
 	}
 
 	/**

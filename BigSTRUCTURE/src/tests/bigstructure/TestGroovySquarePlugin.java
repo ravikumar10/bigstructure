@@ -56,7 +56,11 @@ public class TestGroovySquarePlugin {
 		this.server = new BigSServer();
 		BigStructure.addGroovyPlugins(this.server);
 
-		this.client = new BigSClient();
+		this.client = new BigSClient() {
+			@Override
+			public void Main() {
+			}
+		};
 
 	}
 
