@@ -22,6 +22,10 @@ class SquareService extends BigSService{
 		System.out.println("Received: " + req.val);
 		SquareResponse resp = new SquareResponse();
 		resp.val = req.val * req.val
+		
+		
+		
+	//	dataMap.store(nodePath+"/test.txt", new String("" + resp.val) as byte[]);
 		return resp
 	}
 
