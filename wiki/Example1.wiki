@@ -1,0 +1,35 @@
+#summary One-sentence summary of this page.
+
+= Introduction =
+
+Sample of code using core services.
+
+{{{
+import org.feiteira.bigstructure.BigSClient
+import org.feiteira.bigstructure.core.EchoRequest
+import org.feiteira.bigstructure.core.EchoResponse
+
+class DemoClient extends BigSClient {
+	@Override
+	public void Main() {
+		ensureHost("/echo");
+		requestEPU("/echo");		
+		// waitForEPU
+		sleep(2500);		
+		send("/echo", new EchoRequest("REPEAT"));		
+		sleep 2000		
+		EchoResponse out = read("/echo");		
+		println out.getValue()		
+		int count = arguments[1].toInteger()
+		String value = arguments[2]
+
+		while(count>0){
+			send("/echo", new EchoRequest(value));
+			out = read("/echo");		
+			println "ECHO: " + out.getValue()			
+			count--;
+			sleep 1000
+		}			
+	}
+}
+}}}
