@@ -17,9 +17,7 @@ class DemoClient extends BigSClient {
 		requestEPU("/echo");// requests a EPU (or takes the current one if already available)
 		
 		sleep(2500);// waitForEPU
-		
-		send("/echo", new EchoRequest("REPEAT")); // sen								
-		
+			
 		//takes some arguments
 		int count = arguments[1].toInteger()
 		String value = arguments[2]
@@ -34,5 +32,22 @@ class DemoClient extends BigSClient {
 		}			
 	}
 }
+}}}
+
+Command line: `java -jar BigSTRUCTURE-0.4.jar Client DemoClient.groovy 10 Test!`
+
+
+Output:
+{{{
+[10]ECHO: Test!Test!
+[9]ECHO: Test!Test!
+[8]ECHO: Test!Test!
+[7]ECHO: Test!Test!
+[6]ECHO: Test!Test!
+[5]ECHO: Test!Test!
+[4]ECHO: Test!Test!
+[3]ECHO: Test!Test!
+[2]ECHO: Test!Test!
+[1]ECHO: Test!Test!
 
 }}}
