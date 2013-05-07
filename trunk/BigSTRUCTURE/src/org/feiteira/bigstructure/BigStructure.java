@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
@@ -88,9 +89,9 @@ public class BigStructure {
 			app.addService(EchoRequest.class, EchoService.class);
 
 			addGroovyPlugins(app);
-			
-			Thread.currentThread().wait();
-			
+			app.start();
+			// waits forever
+
 		} else if (mode.equals(Modes.Client.name())) {
 			String mainClientFile = args[1];
 			log.info("Starting in client mode");
@@ -100,6 +101,8 @@ public class BigStructure {
 			BigSClient app = (BigSClient) classLoader
 					.parseClass(new File(mainClientFile)).getConstructor()
 					.newInstance();
+
+			app.setArguments(Arrays.copyOfRange(args, 1, args.length));
 			app.Main();
 		} else {
 			System.err.println("Error, unknown mode: " + mode);
@@ -110,9 +113,10 @@ public class BigStructure {
 	private static void printUsageMesage() {
 		System.out.println("Usage:");
 		System.out
-				.println("\t./BigStructure.jar <Client|Server> [Groovy Client file]");
+				.println("\t./BigStructure.jar <Client|Server> [Groovy Client file [arguments...]]");
 		System.out.println("Examples:");
-		System.out.println("\t./BigStructure.jar Client sampleClient.groovy");
+		System.out
+				.println("\t./BigStructure.jar Client sampleClient.groovy testInputParameter");
 		System.out.println("\t./BigStructure.jar Server");
 		System.out.println("Note: Requires file " + PROPERTIES_FILENAME);
 	}
