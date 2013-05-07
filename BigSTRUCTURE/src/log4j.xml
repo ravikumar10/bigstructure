@@ -26,8 +26,8 @@
 		</filter>
 	</appender>
 
-	<appender name="FILE" class="org.apache.log4j.FileAppender">
-		<param name="File" value="logs/BigPicture-Tests.log" />
+	<appender name="FILE_notUsed" class="org.apache.log4j.FileAppender">
+		<param name="File" value="logs/BigSTRUCTURE-Tests.log" />
 		<param name="Append" value="false" />
 		<param name="encoding" value="UTF-8" />
 		<layout class="org.apache.log4j.PatternLayout">
@@ -35,6 +35,13 @@
 		</layout>
 	</appender>
 
+	<appender name="FILE" class="org.apache.log4j.DailyRollingFileAppender">
+		<param name="File" value="logs/BigSTRUCTURE.log" />
+		<param name="DatePattern" value=".yyyy-MM-dd" />
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern" value="[%t] %d{HH:mm:ss.SSS} %-5p %M(%F:%L) - %m%n" />
+		</layout>
+	</appender>
 
 	<root>
 		<priority value="info" />

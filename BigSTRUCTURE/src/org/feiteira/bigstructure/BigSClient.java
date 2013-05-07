@@ -25,8 +25,10 @@ public abstract class BigSClient implements BigSWatcher {
 
 	private HashMap<String, EPUConnection> epuConnections;
 
+	protected String[] arguments;
+
 	public abstract void Main();
-	
+
 	/**
 	 * Creates a BigStructure client instance
 	 */
@@ -39,9 +41,17 @@ public abstract class BigSClient implements BigSWatcher {
 		epuConnections = new HashMap<String, EPUConnection>();
 		// vars
 		this.id = properties.getProperty(BigStructure.PROP_STRUCTURE_ID);
-	}
-	
 
+	}
+
+	public void setArguments(String[] args) {
+		// command line arguments
+		if (args == null)
+			this.arguments = new String[0];
+		else
+			this.arguments = args;
+
+	}
 
 	/**
 	 * Requests an EPU instance for {@code epuPath}. Path must exist.
@@ -50,9 +60,21 @@ public abstract class BigSClient implements BigSWatcher {
 	 * @throws CoordinatorException
 	 */
 	public void requestEPU(String epuPath) throws CoordinatorException {
-		coordinator.addChildChangeWatcher(epuPath, this);
+		String epuHostFullPath = getFullPath(epuPath);
+
+		String epuFullPath = epuHostFullPath + "/" + BigStructure.EPU_KEY;
+		if (coordinator.exists(epuFullPath)) {
+			try {
+				loadEPUFromHost(epuHostFullPath);
+				return;
+			} catch (IOException e) {
+				log.error("Could not load EPU, making new request", e);
+			}
+		}
+
+		coordinator.addChildChangeWatcher(epuHostFullPath, this);
 		String nx = epuPath.replace('/', '-');
-		coordinator.create("/" + id + "/atrium/" + nx, epuPath);
+		coordinator.create("/" + id + "/atrium/" + nx, epuHostFullPath);
 	}
 
 	/**
@@ -63,9 +85,10 @@ public abstract class BigSClient implements BigSWatcher {
 	 *         create
 	 */
 	public boolean ensureHost(String hostNodeRelativePath) {
-		String fullPath = "/" + id + hostNodeRelativePath;
-		if (coordinator.exists(fullPath))
+		String fullPath = getFullPath(hostNodeRelativePath);
+		if (coordinator.exists(fullPath)) {
 			return true;
+		}
 
 		try {
 			return coordinator.create(fullPath, null);
@@ -84,12 +107,13 @@ public abstract class BigSClient implements BigSWatcher {
 	 * @throws IOException
 	 */
 	public void send(String epuPath, BigSRequest req) throws IOException {
-		if (epuConnections.get(epuPath) != null) {
-			req.setNodePath(epuPath);
-			epuConnections.get(epuPath).client.send(req);
+		String epuFullPath = getFullPath(epuPath);
+		if (epuConnections.get(epuFullPath) != null) {
+			req.setNodePath(epuFullPath);
+			epuConnections.get(epuFullPath).client.send(req);
 		} else
 			log.error("Unsupported request of type " + req.getClass()
-					+ " for  node " + req.getNodePath());
+					+ " for  node " + epuFullPath);
 	}
 
 	/**
@@ -100,7 +124,9 @@ public abstract class BigSClient implements BigSWatcher {
 	 * @throws IOException
 	 */
 	public BigSResponse read(String epuPath) throws IOException {
-		EPUConnection epu = epuConnections.get(epuPath);
+		String epuFullPath = getFullPath(epuPath);
+
+		EPUConnection epu = epuConnections.get(epuFullPath);
 		if (epu == null)
 			return null;
 		return (BigSResponse) epu.client.read().getObject();
@@ -117,11 +143,7 @@ public abstract class BigSClient implements BigSWatcher {
 			log.info("Child: " + child);
 			if (child.equals(BigStructure.EPU_KEY)) {
 				try {
-					EPUReference ref = (EPUReference) coordinator.get(path
-							+ "/" + BigStructure.EPU_KEY);
-					EPUConnection cli = new EPUConnection(ref);
-
-					epuConnections.put(path, cli);
+					loadEPUFromHost(path);
 				} catch (CoordinatorException e) {
 					log.warn("Could not load node: " + path + "/"
 							+ BigStructure.EPU_KEY);
@@ -133,11 +155,26 @@ public abstract class BigSClient implements BigSWatcher {
 		}
 	}
 
+	private void loadEPUFromHost(String hostPath) throws CoordinatorException,
+			IOException {
+		EPUReference ref = (EPUReference) coordinator.get(hostPath + "/"
+				+ BigStructure.EPU_KEY);
+		EPUConnection cli = new EPUConnection(ref);
+
+		epuConnections.put(hostPath, cli);
+
+	}
+
 	/**
 	 * Not used, inherithed from {@code BigSWatcher}
 	 */
 	@Override
 	public void dataChanged(String path, Serializable newData) {
+
+	}
+
+	private String getFullPath(String path) {
+		return "/" + id + path;
 
 	}
 

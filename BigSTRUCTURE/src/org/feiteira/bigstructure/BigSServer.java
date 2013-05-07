@@ -189,7 +189,7 @@ public class BigSServer extends Thread implements SeriEventHandler {
 				epuRef.setNodePath(targetNode);
 				coordinator.createEphemeral(getEPUPath(targetNode), epuRef);
 			} catch (CoordinatorException e) {
-				log.error("Error, could not create node: " + targetNode);
+				log.error("Error, could not create EPU for node: " + targetNode);
 				return;
 			}
 
