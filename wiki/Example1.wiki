@@ -4,6 +4,7 @@
 
 Sample of code using core services.
 
+`DemoClient.groovy:`
 {{{
 import org.feiteira.bigstructure.BigSClient
 import org.feiteira.bigstructure.core.EchoRequest
