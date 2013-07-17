@@ -15,7 +15,7 @@ import org.apache.log4j.Logger;
 import org.feiteira.bigstructure.auxi.BigSCoordinator;
 import org.feiteira.bigstructure.auxi.BigSDataMap;
 import org.feiteira.bigstructure.auxi.CoordinatorException;
-import org.feiteira.bigstructure.auxi.EPUReference;
+import org.feiteira.bigstructure.auxi.EPUAddress;
 import org.feiteira.bigstructure.core.abstracts.BigSRequest;
 import org.feiteira.bigstructure.core.abstracts.BigSService;
 import org.feiteira.network.SeriDataPackage;
@@ -25,6 +25,7 @@ import org.feiteira.network.SeriServer;
 public class BigSServer extends Thread implements SeriEventHandler {
 	private static final String PROP_THREADS = "Threads";
 	private static final String PROP_MAX_EPUS_CREATED_PER_SECOND = "MaxEPUsCreatedPerSecond";
+	private static final int DEFAULT_EPU_TIMEOUT_MS = 30000;
 
 	// Statics
 	private static Properties properties = null;
@@ -34,6 +35,7 @@ public class BigSServer extends Thread implements SeriEventHandler {
 	private static String externalIP;
 	private static Object lockIP = new Object();
 
+	private int epuTimeout = DEFAULT_EPU_TIMEOUT_MS;
 	private int nthreads;
 	private String id = null;
 	private SeriServer server;
@@ -56,6 +58,11 @@ public class BigSServer extends Thread implements SeriEventHandler {
 		// vars
 		this.id = properties.getProperty(BigStructure.PROP_STRUCTURE_ID);
 		this.nthreads = Integer.parseInt(properties.getProperty(PROP_THREADS));
+		String epuTimeoutString = properties
+				.getProperty(BigStructure.PROP_EPU_TIMEOUT_MS);
+		if (epuTimeoutString != null) {
+			this.epuTimeout = Integer.parseInt(epuTimeoutString);
+		}
 
 		// structures
 		incomingRequests = new Vector<String>();
@@ -170,6 +177,7 @@ public class BigSServer extends Thread implements SeriEventHandler {
 	 */
 	private void processServiceRequest(String requestNode) {
 		String targetNode;
+		log.debug(requestNode);
 		try {
 			targetNode = (String) coordinator.get(requestNode);
 		} catch (CoordinatorException e) {
@@ -183,7 +191,7 @@ public class BigSServer extends Thread implements SeriEventHandler {
 
 		if (!coordinator.exists(getEPUPath(targetNode)))
 			try {
-				EPUReference epuRef = new EPUReference();
+				EPUAddress epuRef = new EPUAddress();
 				epuRef.setHostName(getExternalIP());
 				epuRef.setServerPort(this.server.getPort());
 				epuRef.setNodePath(targetNode);
@@ -273,6 +281,26 @@ public class BigSServer extends Thread implements SeriEventHandler {
 	}
 
 	/**
+	 * This is a TimerTask that disposes of EPUs that have been inactive for
+	 * {@code timeout} miliseconds.
+	 * 
+	 * @author jlfeitei
+	 * 
+	 */
+	public class EPUDisposerTask extends TimerTask {
+
+		public EPUDisposerTask() {
+			log.info("Adding EPU dispose watcher @ "
+					+ BigSServer.this.getName());
+			
+		}
+
+		@Override
+		public void run() {
+		}
+	}
+
+	/**
 	 * This is a Timer class that periodically checks the Atrium for requests
 	 */
 	public class AtriumWatcherTask extends TimerTask {
@@ -316,5 +344,13 @@ public class BigSServer extends Thread implements SeriEventHandler {
 						e);
 			}
 		}
+	}
+
+	public int getEpuTimeout() {
+		return epuTimeout;
+	}
+
+	public void setEpuTimeout(int epuTimeout) {
+		this.epuTimeout = epuTimeout;
 	}
 }

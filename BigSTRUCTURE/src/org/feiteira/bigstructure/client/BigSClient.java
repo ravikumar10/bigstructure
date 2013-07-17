@@ -1,16 +1,18 @@
-package org.feiteira.bigstructure;
+package org.feiteira.bigstructure.client;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.Vector;
 
 import org.apache.log4j.Logger;
+import org.feiteira.bigstructure.BigStructure;
 import org.feiteira.bigstructure.auxi.BigSCoordinator;
 import org.feiteira.bigstructure.auxi.BigSWatcher;
 import org.feiteira.bigstructure.auxi.CoordinatorException;
-import org.feiteira.bigstructure.auxi.EPUReference;
+import org.feiteira.bigstructure.auxi.EPUAddress;
 import org.feiteira.bigstructure.core.abstracts.BigSRequest;
 import org.feiteira.bigstructure.core.abstracts.BigSResponse;
 import org.feiteira.network.SeriClient;
@@ -23,7 +25,8 @@ public abstract class BigSClient implements BigSWatcher {
 	private static BigSCoordinator coordinator;
 	private String id;
 
-	private HashMap<String, EPUConnection> epuConnections;
+	private HashMap<String, EPU> epus;
+	private HashMap<String, Object> epuMutexes;
 
 	protected String[] arguments;
 
@@ -38,7 +41,9 @@ public abstract class BigSClient implements BigSWatcher {
 		BigSClient.coordinator = BigStructure.getCoordinator();
 
 		// Structures
-		epuConnections = new HashMap<String, EPUConnection>();
+		epus = new HashMap<String, EPU>();
+		epuMutexes = new HashMap<String, Object>();
+
 		// vars
 		this.id = properties.getProperty(BigStructure.PROP_STRUCTURE_ID);
 
@@ -53,10 +58,32 @@ public abstract class BigSClient implements BigSWatcher {
 
 	}
 
+	public void requestEPUBlocking(String epuPath, int timeout)
+			throws CoordinatorException, InterruptedException {
+		Object mut = new Object();
+
+		this.epuMutexes.put(getFullPath(epuPath), mut);
+
+		synchronized (mut) {
+			requestEPU(epuPath);
+
+			log.error("Before wait");
+			mut.wait(timeout);
+			log.error("After wait");
+		}
+	}
+
+	public void requestEPUBlocking(String epuPath) throws CoordinatorException,
+			InterruptedException {
+		requestEPUBlocking(epuPath, 0);
+	}
+
 	/**
 	 * Requests an EPU instance for {@code epuPath}. Path must exist.
 	 * 
 	 * @param epuPath
+	 * @return
+	 * 
 	 * @throws CoordinatorException
 	 */
 	public void requestEPU(String epuPath) throws CoordinatorException {
@@ -66,7 +93,6 @@ public abstract class BigSClient implements BigSWatcher {
 		if (coordinator.exists(epuFullPath)) {
 			try {
 				loadEPUFromHost(epuHostFullPath);
-				return;
 			} catch (IOException e) {
 				log.error("Could not load EPU, making new request", e);
 			}
@@ -99,40 +125,6 @@ public abstract class BigSClient implements BigSWatcher {
 	}
 
 	/**
-	 * Sends data to a specific EPU.
-	 * 
-	 * @param epuPath
-	 * @param req
-	 *            Request to be sent
-	 * @throws IOException
-	 */
-	public void send(String epuPath, BigSRequest req) throws IOException {
-		String epuFullPath = getFullPath(epuPath);
-		if (epuConnections.get(epuFullPath) != null) {
-			req.setNodePath(epuFullPath);
-			epuConnections.get(epuFullPath).client.send(req);
-		} else
-			log.error("Unsupported request of type " + req.getClass()
-					+ " for  node " + epuFullPath);
-	}
-
-	/**
-	 * Reads incoming data from the specified EPU path.
-	 * 
-	 * @param epuPath
-	 * @return
-	 * @throws IOException
-	 */
-	public BigSResponse read(String epuPath) throws IOException {
-		String epuFullPath = getFullPath(epuPath);
-
-		EPUConnection epu = epuConnections.get(epuFullPath);
-		if (epu == null)
-			return null;
-		return (BigSResponse) epu.client.read().getObject();
-	}
-
-	/**
 	 * Used to monitor a for requested epuPaths and see if there are attached
 	 * epu instances.
 	 */
@@ -157,12 +149,24 @@ public abstract class BigSClient implements BigSWatcher {
 
 	private void loadEPUFromHost(String hostPath) throws CoordinatorException,
 			IOException {
-		EPUReference ref = (EPUReference) coordinator.get(hostPath + "/"
+		EPUAddress ref = (EPUAddress) coordinator.get(hostPath + "/"
 				+ BigStructure.EPU_KEY);
-		EPUConnection cli = new EPUConnection(ref);
+		EPU epu = new EPU(ref);
+		epu.setPath(hostPath);
 
-		epuConnections.put(hostPath, cli);
+		epus.put(hostPath, epu);
 
+		log.error(hostPath);
+		Object waitMutex = epuMutexes.get(hostPath);
+
+		if (waitMutex != null)
+			synchronized (waitMutex) {
+				epuMutexes.remove(hostPath);
+				log.error("Before notify");
+
+				waitMutex.notify();
+				log.error("Aftyer notify");
+			}
 	}
 
 	/**
@@ -178,15 +182,8 @@ public abstract class BigSClient implements BigSWatcher {
 
 	}
 
-	private class EPUConnection {
-		@SuppressWarnings("unused")
-		private Object ref;
-		private SeriClient client;
-
-		public EPUConnection(EPUReference ref) throws IOException {
-			this.ref = ref;
-			this.client = new SeriClient(ref.getHostName(), ref.getServerPort());
-		}
+	public EPU epu(String key) {
+		return epus.get(getFullPath(key));
 	}
 
 }

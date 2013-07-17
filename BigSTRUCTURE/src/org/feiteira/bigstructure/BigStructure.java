@@ -14,6 +14,7 @@ import org.codehaus.groovy.control.CompilationFailedException;
 import org.feiteira.bigstructure.auxi.BigSCoordinator;
 import org.feiteira.bigstructure.auxi.BigSDataMap;
 import org.feiteira.bigstructure.auxi.CoordinatorException;
+import org.feiteira.bigstructure.client.BigSClient;
 import org.feiteira.bigstructure.core.EchoRequest;
 import org.feiteira.bigstructure.core.EchoService;
 import org.feiteira.bigstructure.impl.LocalFilesystemDataMap;
@@ -40,6 +41,7 @@ public class BigStructure {
 	public static Logger log = Logger.getLogger(BigStructure.class);
 	public static final String PROPERTIES_FILENAME = "properties.ini";
 	public static final String PROP_STRUCTURE_ID = "ID";
+	public static final String PROP_EPU_TIMEOUT_MS = "EPUTimeout";
 
 	private static final String GROOVY_REQUEST_SUFFIX = "Request.groovy";
 	private static final String GROOVY_RESPONSE_SUFFIX = "Response.groovy";

@@ -12,7 +12,7 @@ public class EchoService extends BigSService<EchoRequest, EchoResponse> {
 	}
 
 	@Override
-	protected void open(String nodePath, HashMap<String, Object> cache) {
+	protected void open(String nodePath, HashMap<String, Object> cache) {		
 		System.out.println("Initiating ECHO service");
 	}
 

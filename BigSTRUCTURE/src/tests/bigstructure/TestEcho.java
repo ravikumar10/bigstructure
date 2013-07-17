@@ -7,10 +7,10 @@ import java.io.IOException;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.feiteira.bigstructure.BigSClient;
 import org.feiteira.bigstructure.BigSServer;
 import org.feiteira.bigstructure.BigStructure;
 import org.feiteira.bigstructure.auxi.CoordinatorException;
+import org.feiteira.bigstructure.client.BigSClient;
 import org.feiteira.bigstructure.core.EchoRequest;
 import org.feiteira.bigstructure.core.EchoResponse;
 import org.feiteira.bigstructure.core.EchoService;
@@ -47,13 +47,14 @@ public class TestEcho {
 		log.info("Starting in server mode");
 		this.server = new BigSServer();
 
-		this.client = new BigSClient(){
+		this.client = new BigSClient() {
 
 			@Override
 			public void Main() {
 				// TODO Auto-generated method stub
-				
-			}};
+
+			}
+		};
 
 	}
 
@@ -61,22 +62,22 @@ public class TestEcho {
 	public void tearDown() throws Exception {
 	}
 
-	 @Test
+	@Test
 	public void testEcho() throws CoordinatorException, InterruptedException,
 			IOException {
 		server.addService(EchoRequest.class, EchoService.class);
 
 		server.start();
 
-		this.client.requestEPU("/default/echo");
+		this.client.requestEPU("/echo");
 
 		Thread.sleep(3000);
 
-		this.client.send("/default/echo", new EchoRequest("TEST! "));
+		this.client.epu("/echo").request(new EchoRequest("TEST! "));
 
 		Thread.sleep(1500);
 
-		Object o = this.client.read("/default/echo");
+		Object o = this.client.epu("/echo").getResponse();
 		log.debug("Received object of type: " + o.getClass());
 
 		EchoResponse resp = (EchoResponse) o;
@@ -95,15 +96,15 @@ public class TestEcho {
 
 		server.start();
 
-		this.client.requestEPU("/default/echo");
+		this.client.requestEPU("/echo");
 
 		Thread.sleep(3000);
 
-		this.client.send("/default/echo", new EchoRequest("TEST! "));
+		this.client.epu("/echo").request(new EchoRequest("TEST! "));
 
 		Thread.sleep(1500);
 
-		Object o = this.client.read("/default/does-not-exist");
+		Object o = this.client.epu("/does-not-exist");
 		if (o != null) {
 			log.debug("Received object of type: " + o.getClass());
 
