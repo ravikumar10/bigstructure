@@ -7,14 +7,14 @@ import java.io.Serializable;
  * 
  * @author jlfeitei
  */
-public class EPUReference implements Serializable {
+public class EPUAddress implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	String nodePath;
 	int serverPort;
 	String hostName;
 
-	public EPUReference() {
+	public EPUAddress() {
 	}
 
 	public String getNodePath() {

@@ -1,11 +1,10 @@
 package tests.bigstructure;
 
+import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
-import groovy.lang.GroovyClassLoader;
+import static org.junit.Assert.fail;
 
-import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -13,9 +12,10 @@ import org.feiteira.bigstructure.BigSServer;
 import org.feiteira.bigstructure.BigStructure;
 import org.feiteira.bigstructure.auxi.CoordinatorException;
 import org.feiteira.bigstructure.client.BigSClient;
+import org.feiteira.bigstructure.client.EPU;
 import org.feiteira.bigstructure.core.EchoRequest;
+import org.feiteira.bigstructure.core.EchoResponse;
 import org.feiteira.bigstructure.core.EchoService;
-import org.feiteira.bigstructure.core.abstracts.BigSRequest;
 import org.feiteira.bigstructure.core.abstracts.BigSResponse;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -23,10 +23,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class TestGroovySquarePlugin {
-
-	public static Logger log = Logger.getLogger(TestGroovySquarePlugin.class);
-
+public class TestEPUdiscard {
+	public static Logger log = Logger.getLogger(TestEPUdiscard.class);
 	@SuppressWarnings("unused")
 	private BigStructure structure;
 
@@ -49,15 +47,14 @@ public class TestGroovySquarePlugin {
 	public void setUp() throws Exception {
 		this.structure = new BigStructure();
 		log.info("Starting in server mode");
-		BigStructure.log.setLevel(Level.DEBUG);
-		BigSClient.log.setLevel(Level.DEBUG);
-
 		this.server = new BigSServer();
-		BigStructure.addGroovyPlugins(this.server);
 
 		this.client = new BigSClient() {
+
 			@Override
 			public void Main() {
+				// TODO Auto-generated method stub
+
 			}
 		};
 
@@ -67,36 +64,37 @@ public class TestGroovySquarePlugin {
 	public void tearDown() throws Exception {
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
-	public void test() throws CoordinatorException, InterruptedException,
-			IOException, IllegalArgumentException, SecurityException,
-			InstantiationException, IllegalAccessException,
-			InvocationTargetException, NoSuchMethodException {
+	public void testDiscard() throws CoordinatorException,
+			InterruptedException, IOException {
+
+		server.setEpuTimeout(2000); // two seconds
 		server.addService(EchoRequest.class, EchoService.class);
 
 		server.start();
 
-		this.client.requestEPU("/square");
+		this.client.requestEPUBlocking("/echo");
 
-		Thread.sleep(5000);
+		EPU echo = this.client.epu("/echo");
 
-		// create instance
-		String fileName = "samples/Square/SquareRequest.groovy";
-		GroovyClassLoader gcl = new GroovyClassLoader();
-		Class clazz = gcl.parseClass(new File(fileName));
+		echo.request(new EchoRequest("Repeat this!"));
+		EchoResponse resp = (EchoResponse) echo.getResponse();
+		assertEquals("Repeat this!Repeat this!", resp.getValue());
+		System.out.println(resp);
 
-		BigSRequest instance = (BigSRequest) clazz.getConstructor(float.class)
-				.newInstance(5.0f);
+		echo.request(new EchoRequest("Repeat this too!"));
+		Thread.sleep(5000); // sleeps 5 seconds so the EPU timesout
+		assertTrue(true);
 
-		this.client.epu("/square").request(instance);
+		
+		resp = (EchoResponse) echo.getResponse();
 
-		BigSResponse obj = this.client.epu("/square").getResponse();
+		log.error(resp.getValue());
+		
+		System.out.println(resp);
 
-		log.info("Read object from class: " + obj.getClass());
-		log.info("Obj: " + obj);
-		assertEquals("SquareResponse", obj.getClass().getCanonicalName());
-		assertEquals("25.0", obj.toString());
+
+
 	}
 
 }
