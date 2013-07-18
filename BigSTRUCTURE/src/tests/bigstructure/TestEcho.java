@@ -6,6 +6,8 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 
 import org.apache.log4j.Level;
+import org.feiteira.bigstructure.client.EPU;
+
 import org.apache.log4j.Logger;
 import org.feiteira.bigstructure.BigSServer;
 import org.feiteira.bigstructure.BigStructure;
@@ -43,6 +45,8 @@ public class TestEcho {
 
 	@Before
 	public void setUp() throws Exception {
+		log.info("TAG TEST SETUP");
+
 		this.structure = new BigStructure();
 		log.info("Starting in server mode");
 		this.server = new BigSServer();
@@ -60,6 +64,9 @@ public class TestEcho {
 
 	@After
 	public void tearDown() throws Exception {
+		log.info("TAG TEST TEARING DOWN");
+		this.server.shutdown();
+		Thread.sleep(1500);
 	}
 
 	@Test
@@ -69,11 +76,11 @@ public class TestEcho {
 
 		server.start();
 
-		this.client.requestEPU("/echo");
+		this.client.requestEPUBlocking("/echo");
 
-		Thread.sleep(3000);
+		EPU epu = this.client.epu("/echo");
 
-		this.client.epu("/echo").request(new EchoRequest("TEST! "));
+		epu.request(new EchoRequest("TEST! "));
 
 		Thread.sleep(1500);
 
@@ -96,22 +103,21 @@ public class TestEcho {
 
 		server.start();
 
-		this.client.requestEPU("/echo");
-
-		Thread.sleep(3000);
+		this.client.requestEPUBlocking("/echo");
 
 		this.client.epu("/echo").request(new EchoRequest("TEST! "));
 
 		Thread.sleep(1500);
 
+		log.warn("Making impossible request");
 		Object o = this.client.epu("/does-not-exist");
 		if (o != null) {
-			log.debug("Received object of type: " + o.getClass());
+			log.info("Received object of type: " + o.getClass());
 
 			EchoResponse resp = (EchoResponse) o;
 
-			log.debug("Received message: " + resp.getValue());
-			log.debug("\tfrom: " + resp.getNodePath());
+			log.info("Received message: " + resp.getValue());
+			log.info("\tfrom: " + resp.getNodePath());
 			fail();
 		}
 	}

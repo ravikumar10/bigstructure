@@ -43,6 +43,7 @@ public class TestGroovySquarePlugin {
 
 	@AfterClass
 	public static void tearDownAfterClass() throws Exception {
+		Thread.sleep(5000);
 	}
 
 	@Before
@@ -59,12 +60,13 @@ public class TestGroovySquarePlugin {
 			@Override
 			public void Main() {
 			}
-		};
+		};	
 
 	}
 
 	@After
 	public void tearDown() throws Exception {
+		this.server.shutdown();
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -77,7 +79,7 @@ public class TestGroovySquarePlugin {
 
 		server.start();
 
-		this.client.requestEPU("/square");
+		this.client.requestEPUBlocking("/square");
 
 		Thread.sleep(5000);
 

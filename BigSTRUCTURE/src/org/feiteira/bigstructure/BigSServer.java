@@ -29,11 +29,14 @@ public class BigSServer extends Thread implements SeriEventHandler {
 
 	// Statics
 	private static Properties properties = null;
-	private static BigSCoordinator coordinator = null;
+
 	private static BigSDataMap dataMap = null;
 	public static Logger log = Logger.getLogger(BigSServer.class);
 	private static String externalIP;
 	private static Object lockIP = new Object();
+
+	// each server has a (connection to the) coordinator
+	private BigSCoordinator coordinator = null;
 
 	private int epuTimeout = DEFAULT_EPU_TIMEOUT_MS;
 	private int nthreads;
@@ -43,16 +46,29 @@ public class BigSServer extends Thread implements SeriEventHandler {
 	private Vector<String> incomingRequests = null;
 	int maxEPUsCreatedPerSecond = 1;
 	private AtriumWatcherTask atriumWatcher;
-	private Timer timer;
+	private Timer timerAtrium;
 	private boolean running;
 
+	/**
+	 * This is a list of services available for EPUs to process by this
+	 * BigSServer instance.
+	 */
 	private HashMap<Class<? extends BigSRequest>, BigSService<?, ?>> services = null;
-	private HashMap<String, HashMap<Class<?>, BigSService<?, ?>>> nodeServices = null;
+
+	/**
+	 * Key is the node name
+	 * 
+	 * 
+	 * Object is the request class and BigSService is the Service itself
+	 */
+	private HashMap<String, HashMap<Class<?>, BigSService<?, ?>>> epuServices = null;
+	private EPUDisposerTask epuGarbageCollector;
+	private Timer timerEPUGarbageCollector;
 
 	public BigSServer() throws CoordinatorException {
 		// Statics
 		BigSServer.properties = BigStructure.getProperties();
-		BigSServer.coordinator = BigStructure.getCoordinator();
+		coordinator = BigStructure.getCoordinator();
 		BigSServer.dataMap = BigStructure.getDataMap();
 
 		// vars
@@ -70,7 +86,7 @@ public class BigSServer extends Thread implements SeriEventHandler {
 				.getProperty(PROP_MAX_EPUS_CREATED_PER_SECOND));
 
 		services = new HashMap<Class<? extends BigSRequest>, BigSService<?, ?>>();
-		nodeServices = new HashMap<String, HashMap<Class<?>, BigSService<?, ?>>>();
+		epuServices = new HashMap<String, HashMap<Class<?>, BigSService<?, ?>>>();
 
 		// nodes
 		if (coordinator.exists(getRootPath())) {
@@ -82,6 +98,7 @@ public class BigSServer extends Thread implements SeriEventHandler {
 		}
 
 		this.atriumWatcher = new AtriumWatcherTask();
+		this.epuGarbageCollector = new EPUDisposerTask();
 	}
 
 	/**
@@ -137,9 +154,33 @@ public class BigSServer extends Thread implements SeriEventHandler {
 		}
 		server.setEventListner(this);
 		this.running = true;
-		this.timer = new Timer();
-		timer.schedule(this.atriumWatcher, 1000, 1000);
+
+		this.timerAtrium = new Timer();
+		timerAtrium.schedule(this.atriumWatcher, 1000, 1000);
+
+		this.timerEPUGarbageCollector = new Timer();
+		timerEPUGarbageCollector.schedule(this.epuGarbageCollector,
+				this.epuTimeout, this.epuTimeout);
+
 		super.start();
+	}
+
+	public void shutdown() {
+		this.timerAtrium.cancel();
+		this.timerEPUGarbageCollector.cancel();
+
+		synchronized (incomingRequests) {
+			this.running = false;
+			incomingRequests.clear();
+			incomingRequests.notify();
+		}
+		try {
+			this.coordinator.disconnect();
+		} catch (CoordinatorException e) {
+			log.warn("Exception raised while disconnecting from coordinator", e);
+		}
+		this.server.shutdown();
+
 	}
 
 	/**
@@ -161,7 +202,7 @@ public class BigSServer extends Thread implements SeriEventHandler {
 
 				for (String requestNode : incomingRequests) {
 					log.debug("Processing request: " + requestNode);
-					processServiceRequest(requestNode);
+					processEPURequest(requestNode);
 				}
 				incomingRequests.clear();
 			}
@@ -175,7 +216,7 @@ public class BigSServer extends Thread implements SeriEventHandler {
 	 * @param requestNode
 	 *            path to the requested node
 	 */
-	private void processServiceRequest(String requestNode) {
+	private void processEPURequest(String requestNode) {
 		String targetNode;
 		log.debug(requestNode);
 		try {
@@ -185,23 +226,32 @@ public class BigSServer extends Thread implements SeriEventHandler {
 			return;
 		}
 
-		if (nodeServices.get(targetNode) == null)
-			nodeServices.put(targetNode,
+		if (coordinator.exists(getEPUPath(targetNode))) {
+			log.info("EPU already available, deleting request and exiting.");
+			coordinator.delete(requestNode);
+			return;
+		}
+
+		/**
+		 * If there is no list of available services for this node, then creates
+		 * the list
+		 */
+		if (epuServices.get(targetNode) == null)
+			epuServices.put(targetNode,
 					new HashMap<Class<?>, BigSService<?, ?>>());
 
-		if (!coordinator.exists(getEPUPath(targetNode)))
-			try {
-				EPUAddress epuRef = new EPUAddress();
-				epuRef.setHostName(getExternalIP());
-				epuRef.setServerPort(this.server.getPort());
-				epuRef.setNodePath(targetNode);
-				coordinator.createEphemeral(getEPUPath(targetNode), epuRef);
-			} catch (CoordinatorException e) {
-				log.error("Error, could not create EPU for node: " + targetNode);
-				return;
-			}
+		try {
+			EPUAddress epuRef = new EPUAddress();
+			epuRef.setHostName(getExternalIP());
+			epuRef.setServerPort(this.server.getPort());
+			epuRef.setNodePath(targetNode);
+			coordinator.createEphemeral(getEPUPath(targetNode), epuRef);
+		} catch (CoordinatorException e) {
+			log.error("Error, could not create EPU for node: " + targetNode);
+			return;
+		}
 
-		HashMap<Class<?>, BigSService<?, ?>> nodeServiceList = nodeServices
+		HashMap<Class<?>, BigSService<?, ?>> nodeServiceList = epuServices
 				.get(targetNode);
 
 		for (Class<?> reqClass : services.keySet()) {
@@ -219,18 +269,30 @@ public class BigSServer extends Thread implements SeriEventHandler {
 	@Override
 	public void messageArrived(SeriDataPackage pack) {
 		BigSService<?, ?> service = services.get(pack.getObject().getClass());
+
 		if (service == null) {
 			log.warn("Service not found for request type: "
 					+ pack.getObject().getClass());
 		} else {
 			log.debug("Service found: " + service);
 			BigSRequest req = (BigSRequest) pack.getObject();
-			Serializable resp = (Serializable) service.handle(
-					req.getNodePath(), req);
-			try {
-				SeriServer.reply(pack, resp);
-			} catch (IOException e) {
-				log.error("Could not reply to client", e);
+
+
+			if (this.epuServices.containsKey(req.getNodePath())) {
+				Serializable resp = (Serializable) service.handle(
+						req.getNodePath(), req);
+				try {
+					SeriServer.reply(pack, resp);
+				} catch (IOException e) {
+					log.error("Could not reply to client", e);
+				}
+			} else {
+				try {
+					SeriServer.reply(pack, null);
+				} catch (IOException e) {
+					log.warn("Error replying to client. Ignoring because it was an invalid node:"
+							+ e);
+				}
 			}
 		}
 	}
@@ -240,7 +302,6 @@ public class BigSServer extends Thread implements SeriEventHandler {
 	 */
 	@Override
 	public void shutdownCompleted() {
-		// TODO Auto-generated method stub
 
 	}
 
@@ -292,11 +353,39 @@ public class BigSServer extends Thread implements SeriEventHandler {
 		public EPUDisposerTask() {
 			log.info("Adding EPU dispose watcher @ "
 					+ BigSServer.this.getName());
-			
+
 		}
 
 		@Override
 		public void run() {
+			Vector<String> nodesToDelete = new Vector<String>();
+			log.info(epuServices);
+			for (String epuHostNodeName : epuServices.keySet()) {
+
+				boolean deleteEPU = false;
+				HashMap<Class<?>, BigSService<?, ?>> serviceList = epuServices
+						.get(epuHostNodeName);
+				for (BigSService<?, ?> servis : serviceList.values()) {
+					log.info(epuHostNodeName + " :: " + servis.toString()
+							+ " :: " + servis.getTimeSinceLastCall());
+					if (servis.getTimeSinceLastCall() > epuTimeout) {
+						deleteEPU = true;
+						break;
+					}
+				}
+
+				if (deleteEPU) {
+					nodesToDelete.add(epuHostNodeName);
+				}
+			}
+
+			for (String epuHostNodeName : nodesToDelete) {
+				log.debug("Removing EPU: " + getEPUPath(epuHostNodeName));
+				if (coordinator.delete(getEPUPath(epuHostNodeName))) {
+					epuServices.remove(epuHostNodeName);
+				}
+			}
+
 		}
 	}
 
@@ -312,8 +401,7 @@ public class BigSServer extends Thread implements SeriEventHandler {
 		}
 
 		public void updateIncomingRequests() throws CoordinatorException {
-			List<String> in_nodes = BigSServer.coordinator
-					.getChildren(getAtriumPath());
+			List<String> in_nodes = coordinator.getChildren(getAtriumPath());
 			updateIncomingRequests(in_nodes);
 
 		}

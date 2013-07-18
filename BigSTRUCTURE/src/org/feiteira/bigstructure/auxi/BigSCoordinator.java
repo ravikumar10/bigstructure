@@ -84,6 +84,8 @@ public abstract class BigSCoordinator {
 	 */
 	public abstract boolean exists(String path);
 
+	public abstract void disconnect() throws CoordinatorException;
+
 	/**
 	 * 
 	 * @param path

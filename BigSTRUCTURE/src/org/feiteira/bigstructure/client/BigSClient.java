@@ -65,11 +65,12 @@ public abstract class BigSClient implements BigSWatcher {
 		this.epuMutexes.put(getFullPath(epuPath), mut);
 
 		synchronized (mut) {
-			requestEPU(epuPath);
+			boolean found = requestEPU(epuPath);
 
-			log.error("Before wait");
-			mut.wait(timeout);
-			log.error("After wait");
+			log.debug("Before wait " + mut);
+			if (!found)// avoids deadlock
+				mut.wait(timeout);
+			log.debug("After wait " + mut);
 		}
 	}
 
@@ -82,25 +83,29 @@ public abstract class BigSClient implements BigSWatcher {
 	 * Requests an EPU instance for {@code epuPath}. Path must exist.
 	 * 
 	 * @param epuPath
-	 * @return
+	 * @return Returns true if the EPU was already available, otherwise requests
+	 *         a new EPU and returns false.
 	 * 
 	 * @throws CoordinatorException
 	 */
-	public void requestEPU(String epuPath) throws CoordinatorException {
+	public boolean requestEPU(String epuPath) throws CoordinatorException {
 		String epuHostFullPath = getFullPath(epuPath);
 
 		String epuFullPath = epuHostFullPath + "/" + BigStructure.EPU_KEY;
 		if (coordinator.exists(epuFullPath)) {
+			// it already exists so request it
 			try {
 				loadEPUFromHost(epuHostFullPath);
+				return true;
 			} catch (IOException e) {
 				log.error("Could not load EPU, making new request", e);
 			}
 		}
-
+		// creates request node and waits for it
 		coordinator.addChildChangeWatcher(epuHostFullPath, this);
 		String nx = epuPath.replace('/', '-');
 		coordinator.create("/" + id + "/atrium/" + nx, epuHostFullPath);
+		return false;
 	}
 
 	/**
@@ -156,16 +161,15 @@ public abstract class BigSClient implements BigSWatcher {
 
 		epus.put(hostPath, epu);
 
-		log.error(hostPath);
+		log.debug(hostPath);
 		Object waitMutex = epuMutexes.get(hostPath);
 
 		if (waitMutex != null)
 			synchronized (waitMutex) {
 				epuMutexes.remove(hostPath);
-				log.error("Before notify");
-
+				log.debug("Before notify " + waitMutex);
 				waitMutex.notify();
-				log.error("Aftyer notify");
+				log.debug("Aftyer notify " + waitMutex);
 			}
 	}
 
