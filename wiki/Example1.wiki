@@ -14,7 +14,8 @@ import org.feiteira.bigstructure.core.EchoResponse
 class DemoClient extends BigSClient {
 	@Override
 	public void Main() {
-			requestEPUBlocking("/echo");// ensures that the host node /<id>/echo exists (or takes the current one if available)  
+
+	    requestEPUBlocking("/echo");// ensures that the host node /<id>/echo exists (or takes the current one if available)  
                                 
             //takes some arguments
             int count = arguments[1].toInteger()
