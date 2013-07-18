@@ -1,6 +1,5 @@
 package tests.bigstructure;
 
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -12,19 +11,18 @@ import org.feiteira.bigstructure.BigSServer;
 import org.feiteira.bigstructure.BigStructure;
 import org.feiteira.bigstructure.auxi.CoordinatorException;
 import org.feiteira.bigstructure.client.BigSClient;
-import org.feiteira.bigstructure.client.EPU;
 import org.feiteira.bigstructure.core.EchoRequest;
 import org.feiteira.bigstructure.core.EchoResponse;
 import org.feiteira.bigstructure.core.EchoService;
-import org.feiteira.bigstructure.core.abstracts.BigSResponse;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class TestEPUdiscard {
-	public static Logger log = Logger.getLogger(TestEPUdiscard.class);
+public class TestDoubleRequest {
+	public static Logger log = Logger.getLogger(TestDoubleRequest.class);
+
 	@SuppressWarnings("unused")
 	private BigStructure structure;
 
@@ -66,32 +64,34 @@ public class TestEPUdiscard {
 	}
 
 	@Test
-	public void testDiscard() throws CoordinatorException,
+	public void testDoubleBlockingRequest() throws CoordinatorException,
 			InterruptedException, IOException {
-
-		server.setEpuTimeout(2000); // two seconds
 		server.addService(EchoRequest.class, EchoService.class);
 
 		server.start();
 
 		this.client.requestEPUBlocking("/echo");
 
-		EPU echo = this.client.epu("/echo");
+		Thread.sleep(3000);
 
-		echo.request(new EchoRequest("Repeat this!"));
-		EchoResponse resp = (EchoResponse) echo.getResponse();
-		assertEquals("Repeat this!Repeat this!", resp.getValue());
+		this.client.epu("/echo").request(new EchoRequest("TEST! "));
 
-		Thread.sleep(5000);
+		Thread.sleep(1500);
 
-		echo.request(new EchoRequest("Repeat this too!"));
+		Object o = this.client.epu("/echo").getResponse();
+		log.debug("Received object of type: " + o.getClass());
 
-		resp = (EchoResponse) echo.getResponse();
-		if (resp != null)
-			log.warn(resp + " :: " + resp.getValue());
+		EchoResponse resp = (EchoResponse) o;
 
-		assertNull(resp);
-		log.info(resp);
+		log.debug("Received message: " + resp.getValue());
+		log.debug("\tfrom: " + resp.getNodePath());
+
+		assertEquals("TEST! TEST! ", resp.getValue());
+		assertEquals("/default/echo", resp.getNodePath());
+
+		// real test now
+		log.info("Before wait, real double-blocking test");
+		this.client.requestEPUBlocking("/echo");
 
 	}
 

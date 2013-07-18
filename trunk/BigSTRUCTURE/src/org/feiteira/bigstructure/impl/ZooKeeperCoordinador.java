@@ -36,12 +36,12 @@ public class ZooKeeperCoordinador extends BigSCoordinator {
 	public static Logger log = Logger.getLogger(ZooKeeperCoordinador.class);
 
 	private static Properties properties = new Properties();
-	private static ZooKeeperRetry zookeeper = null;
+	private ZooKeeperRetry zookeeper = null;
 
 	public ZooKeeperCoordinador() {
 		synchronized (ZooKeeperCoordinador.properties) {
 			ZooKeeperCoordinador.properties = BigStructure.getProperties();
-
+			
 			try {
 				if (zookeeper == null)
 					zookeeper = new ZooKeeperRetry(
@@ -67,7 +67,7 @@ public class ZooKeeperCoordinador extends BigSCoordinator {
 
 		String cpath = null;
 		try {
-			cpath = ZooKeeperCoordinador.zookeeper.create(path, bytes,
+			cpath = zookeeper.create(path, bytes,
 					Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 		} catch (KeeperException e) {
 			log.error("ZooKeeper exception", e);
@@ -87,7 +87,7 @@ public class ZooKeeperCoordinador extends BigSCoordinator {
 
 		String cpath = null;
 		try {
-			cpath = ZooKeeperCoordinador.zookeeper.create(path, bytes,
+			cpath = zookeeper.create(path, bytes,
 					Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 		} catch (KeeperException e) {
 			log.error("ZooKeeper exception", e);
@@ -322,5 +322,14 @@ public class ZooKeeperCoordinador extends BigSCoordinator {
 	public void deleteAll(String path) throws CoordinatorException {
 		if (!path.equals("/zookeeper"))
 			super.deleteAll(path);
+	}
+
+	@Override
+	public void disconnect() throws CoordinatorException {
+		try {
+			zookeeper.close();
+		} catch (InterruptedException e) {
+			throw new CoordinatorException(e);
+		}
 	}
 }

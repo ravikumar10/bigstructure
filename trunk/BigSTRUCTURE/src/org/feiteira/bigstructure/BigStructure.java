@@ -191,7 +191,7 @@ public class BigStructure {
 		}
 
 		// Connectors
-		coordinator = new ZooKeeperCoordinador();
+		//coordinator = new ZooKeeperCoordinador();
 		dataMap = new LocalFilesystemDataMap();
 	}
 
@@ -209,7 +209,7 @@ public class BigStructure {
 	 * @return Return the global coordinator.
 	 */
 	public static BigSCoordinator getCoordinator() {
-		return coordinator;
+		return new ZooKeeperCoordinador();
 	}
 
 	/**

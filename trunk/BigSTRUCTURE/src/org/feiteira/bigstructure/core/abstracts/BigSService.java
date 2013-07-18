@@ -27,6 +27,8 @@ public abstract class BigSService<Request extends BigSRequest, Response extends 
 	protected BigSDataMap dataMap;
 	private boolean opened;
 
+	private long timeOfLastCall;
+
 	public BigSService(BigSDataMap dataMap) {
 		this.dataMap = dataMap;
 		motherCache = new ConcurrentHashMap<String, HashMap<String, Object>>();
@@ -56,6 +58,7 @@ public abstract class BigSService<Request extends BigSRequest, Response extends 
 
 	@SuppressWarnings("unchecked")
 	public synchronized Response handle(String nodePath, BigSRequest req) {
+		this.timeOfLastCall =  System.currentTimeMillis();
 		// make sure it's opened on the first call
 		if (!this.opened)
 			open(nodePath);
@@ -69,6 +72,10 @@ public abstract class BigSService<Request extends BigSRequest, Response extends 
 		Response resp = handle(nodePath, (Request) req, cache);
 		resp.setNodePath(req.getNodePath());
 		return resp;
+	}
+	
+	public long getTimeSinceLastCall(){
+		return System.currentTimeMillis() - this.timeOfLastCall;
 	}
 
 	public void close(String nodePath) {

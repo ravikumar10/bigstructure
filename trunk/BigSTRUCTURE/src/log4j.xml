@@ -8,7 +8,7 @@
 			<param name="ConversionPattern" value="%d{HH:mm:ss.SSS} [%-5p] %M(%F:%L) - %m%n" />
 		</layout>
 		<filter class="org.apache.log4j.varia.LevelRangeFilter">
-			<param name="LevelMin" value="debug" />
+			<param name="LevelMin" value="info" />
 			<param name="LevelMax" value="info" />
 			<param name="AcceptOnMatch" value="false" />
 		</filter>
@@ -24,16 +24,7 @@
 			<param name="LevelMax" value="fatal" />
 			<param name="AcceptOnMatch" value="false" />
 		</filter>
-	</appender>
-
-	<appender name="FILE_notUsed" class="org.apache.log4j.FileAppender">
-		<param name="File" value="logs/BigSTRUCTURE-Tests.log" />
-		<param name="Append" value="false" />
-		<param name="encoding" value="UTF-8" />
-		<layout class="org.apache.log4j.PatternLayout">
-			<param name="ConversionPattern" value="[%t] %d{HH:mm:ss.SSS} %-5p %M(%F:%L) - %m%n" />
-		</layout>
-	</appender>
+	</appender>	
 
 	<appender name="FILE" class="org.apache.log4j.DailyRollingFileAppender">
 		<param name="File" value="logs/BigSTRUCTURE.log" />
@@ -44,7 +35,7 @@
 	</appender>
 
 	<root>
-		<priority value="debug" />
+		<priority value="warn" />
 		<appender-ref ref="console.out" />
 		<appender-ref ref="console.err" />
 		<appender-ref ref="FILE" />
