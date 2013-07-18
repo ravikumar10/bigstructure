@@ -13,18 +13,18 @@ import org.feiteira.bigstructure.core.EchoResponse
 class DemoClient extends BigSClient {
 	@Override
 	public void Main() {
-		ensureHost("/echo");// ensures that the host node /<id>/echo exists
-		requestEPU("/echo");// requests a EPU (or takes the current one if already available)
+		requestEPUBlocking("/echo");// ensures that the host node /<id>/echo exists (or takes the current one if available)
 		
-		sleep(2500);// waitForEPU
-			
+				
 		//takes some arguments
 		int count = arguments[1].toInteger()
 		String value = arguments[2]
 		
+		EPU echo = epu("/echo");
+
 		EchoResponse out;
 		while(count>0){
-			send("/echo", new EchoRequest(value));
+			echo.request(new EchoRequest(value));
 			out = read("/echo");		
 			printf "[%d]ECHO: %s\n" , [count,out.getValue()] as Object[]
 			count--;
