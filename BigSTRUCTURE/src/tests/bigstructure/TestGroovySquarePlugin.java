@@ -67,7 +67,7 @@ public class TestGroovySquarePlugin {
 	@After
 	public void tearDown() throws Exception {
 		this.server.shutdown();
-	}
+	} 
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
